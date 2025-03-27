@@ -1,0 +1,74 @@
+﻿@page "/silos"
+@rendermode InteractiveServer
+
+@inject IClusterClient _clusterClient
+@implements IDisposable
+
+@if (_hosts is not null && _stats is not null)
+{
+    <table class="table">
+        <tr>
+            <th>Role</th>
+            <th>Silo</th>
+            <th>Started</th>
+            <th>Status</th>
+            <th>Customer Grains</th>
+            <th>Concert Grains</th>
+            <th>Ticket Grains</th>
+        </tr>
+        @foreach (var host in _hosts.OrderBy(_ => _.StartTime))
+        {
+            <tr>
+                <td>@host.RoleName</td>
+                <td>@host.SiloName</td>
+                <td>@host.StartTime</td>
+                <td>@host.Status</td>
+                <td>@_stats.Count(_ => _.GrainType.Contains("UserGrain") && _.SiloAddress.Equals(host.SiloAddress))</td>
+                <td>@_stats.Count(_ => _.GrainType.Contains("ConcertGrain") && _.SiloAddress.Equals(host.SiloAddress))</td>
+                <td>@_stats.Count(_ => _.GrainType.Contains("TicketGrain") && _.SiloAddress.Equals(host.SiloAddress))</td>
+            </tr>
+        }
+        <tr>
+            <th></th>
+            <th></th>
+            <th></th>
+            <th></th>
+            <th>@_stats.Count(_ => _.GrainType.Contains("UserGrain"))</th>
+            <th>@_stats.Count(_ => _.GrainType.Contains("ConcertGrain"))</th>
+            <th>@_stats.Count(_ => _.GrainType.Contains("TicketGrain"))</th>
+        </tr>
+    </table>
+}
+
+@code {
+    private IEnumerable<MembershipEntry>? _hosts;
+    private IEnumerable<DetailedGrainStatistic>? _stats;
+    private Timer? _reloadTimer;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ReloadStatistics();
+        _reloadTimer = new Timer(async _ => await ReloadStatistics(), null, TimeSpan.Zero, TimeSpan.FromSeconds(1));
+    }
+
+    private async Task ReloadStatistics()
+    {
+        try
+        {
+            var managementGrain = _clusterClient.GetGrain<IManagementGrain>(0);
+            _hosts = await managementGrain.GetDetailedHosts();
+            _stats = (await managementGrain.GetDetailedGrainStatistics()).Where(_ => _.GrainType.Contains("TicketRush")).OrderBy(_ => _.GrainType);
+            await InvokeAsync(StateHasChanged);
+        }
+        catch
+        {
+        }
+    }
+
+    public void Dispose()
+    {
+        // Dispose of the timer when the component is disposed
+        _reloadTimer?.Dispose();
+    }
+}

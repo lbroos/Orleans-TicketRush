@@ -1,0 +1,33 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net9.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Bogus" Version="35.6.2" />
+
+        <PackageReference Include="Aspire.Azure.Data.Tables" Version="9.0.0" />
+        <PackageReference Include="Aspire.Azure.Storage.Blobs" Version="9.0.0" />
+
+        <PackageReference Include="Microsoft.Orleans.Clustering.AzureStorage" Version="8.2.0" />
+        <PackageReference Include="Microsoft.Orleans.Client" Version="8.2.0" />
+        
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.2" />
+        <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="9.0.2" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\TicketRush.Abstractions\TicketRush.Abstractions.csproj" />
+        <ProjectReference Include="..\TicketRush.Grains\TicketRush.Grains.csproj" />
+        <ProjectReference Include="..\TicketRush.ServiceDefaults\TicketRush.ServiceDefaults.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Using Include="TicketRush.Abstractions" />
+    </ItemGroup>
+
+</Project>

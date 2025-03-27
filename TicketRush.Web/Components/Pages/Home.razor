@@ -1,0 +1,119 @@
+﻿@page "/"
+@rendermode InteractiveServer
+
+@using TicketRush.Abstractions
+@using TicketRush.Abstractions.Models
+
+@inject IClusterClient _clusterClient
+@implements IDisposable
+
+<h1>Concerts</h1>
+
+@if (_concerts == null || !_concerts.Any())
+{
+    <h3>No concerts.</h3>
+}
+else
+{
+    <table class="table">
+        <tbody>
+        <tr>
+            <th>ID</th>
+            <th>ConcertName</th>
+            <th>TotalTickets</th>
+            <th>Price</th>
+            <th>Tickets Sold</th>
+        </tr>
+        @foreach (var concert in _concertTicketsSold)
+        {
+            <tr>
+                <td>@concert.Key.Id</td>
+                <td>@concert.Key.ConcertName</td>
+                <td>@concert.Key.TotalTickets</td>
+                <td>@concert.Key.Price</td>
+                <td>@concert.Value</td>
+            </tr>
+        }
+        </tbody>
+    </table>
+    
+    <h3>Total tickets sold : @_totalTicketsSold</h3>
+}
+
+<h1>Customers: @_customers.Length</h1>
+
+@if (_customers == null || !_customers.Any())
+{
+    <h3>No customers.</h3>
+}
+else
+{
+    <table class="table">
+        <tbody>
+        @foreach(var customer in _customers)
+        {
+            <tr>
+                <td>@customer.Name</td>
+                <td>@customer.City</td>
+                <td>@customer.Country</td>
+            </tr>
+        }
+        </tbody>
+    </table>
+}
+
+
+
+@code {
+    Customer[] _customers = [];
+    Concert[] _concerts = [];
+    Dictionary<Concert, int> _concertTicketsSold = new();
+    IShopGrain? _shopGrain; 
+    private Timer? _reloadTimer;
+    int _totalTicketsSold = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _shopGrain = _clusterClient.GetGrain<IShopGrain>(Guid.Empty);
+        
+        await ReloadData();
+        _reloadTimer = new Timer(async _ => await ReloadData(), null, TimeSpan.Zero, TimeSpan.FromSeconds(3));
+    }
+    
+    private async Task ReloadData()
+    {
+        try
+        {
+            if (_shopGrain is not null)
+            {
+                _customers = await _shopGrain.GetCustomers();
+                _concerts = await _shopGrain.GetConcerts();
+
+                _concertTicketsSold = new Dictionary<Concert, int>();
+                _totalTicketsSold = 0;
+                
+                foreach (var concert in _concerts)
+                {
+                    var concertGrain = _clusterClient.GetGrain<IConcertGrain>(concert.Id);
+                    int availableTickets = await concertGrain.GetAvailableTickets();
+                    var ticketsSold = concert.TotalTickets - availableTickets;
+            
+                    _concertTicketsSold.Add(concert, ticketsSold);
+
+                    _totalTicketsSold += ticketsSold;
+                }
+                
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch
+        {
+        }
+    }
+    
+    public void Dispose()
+    {
+        // Dispose of the timer when the component is disposed
+        _reloadTimer?.Dispose();
+    }
+}
